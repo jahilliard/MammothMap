@@ -85,7 +85,7 @@ class MammothMap(tkinter.Tk):
         self.canvas.create_image(0, 0, image=self.photo, anchor=tkinter.NW)
         self.place_weather()
         self.canvas.create_rectangle(1250, 700, 1750, 950, fill = "#ADD8E6")
-        self.after(2000, self.place_image) 
+        self.after(30000, self.place_image) 
 
     def place_weather(self):
         self.weather = self.get_weather_information()
@@ -95,7 +95,7 @@ class MammothMap(tkinter.Tk):
         self.canvas.create_text(1500, 765, text = 'Current Surface ' + self.weather['Surface'])
         self.canvas.create_text(1500, 780, text = 'Current Summit Wind Speed ' + self.weather['WindDetails']['Summit']['Speed'])
         self.canvas.create_text(1500, 795, text = 'Current Summit Wind Direction ' + self.weather['WindDetails']['Summit']['Direction'])
-        self.after(2000, self.place_weather) 
+        self.after(30000, self.place_weather) 
         
     def make_weather_xml_path(self, *args):
         xmlns = '{http://schemas.mammothmountain.com/Weather/2.0}'
