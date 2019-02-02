@@ -79,7 +79,7 @@ class MammothMap(tkinter.Tk):
         self.image = self.load_image()
         self.photo = PIL.ImageTk.PhotoImage(PIL.Image.fromarray(self.image))
         self.canvas.create_image(0, 0, image=self.photo, anchor=tkinter.NW)
-        self.after(2000, self.place_image) 
+        self.after(30000, self.place_image) 
 
 if __name__== "__main__":
     app = MammothMap()
