@@ -6,7 +6,11 @@ import PIL.Image, PIL.ImageTk
 import cv2
 import os
 import xml.etree.ElementTree as ET
-
+from datetime import datetime as dt
+import datetime
+import asyncio
+import gzip
+import shutil
 
 class MammothMap(tkinter.Tk):
     lift_map = {
@@ -44,14 +48,33 @@ class MammothMap(tkinter.Tk):
         self.canvas.pack()
         self.place_image()
 
-    # def log_lift_status(self, lift_xml):
-    #     f=open("liftStatus.xml", "a+")
-    #     f.write(lift_xml)
+    async def log(self, log_type, data_type, data):
+        today_date = dt.today()
+        prefix = today_date.strftime('%y_%m') + "_" + log_type
+        log_dir_name = 'log/' + prefix + "/"
+        if not os.path.exists(log_dir_name):
+            os.makedirs(log_dir_name)
+        today_file_log_path = log_dir_name + today_date.strftime('%y_%m_%d') + "_" + log_type + "." + data_type 
+        if not os.path.exists(today_file_log_path):
+            yesterday_date = today_date - datetime.timedelta(days = 1)
+            yester_prefix = yesterday_date.strftime('%y_%m') + "_" + log_type
+            yester_log_dir_name = 'log/' + yester_prefix + "/"
+            yester_file_log_path = yester_log_dir_name + yesterday_date.strftime('%y_%m_%d') + "_" + log_type + "." + data_type 
+            if os.path.exists(yester_file_log_path):
+                with open(yester_file_log_path, 'rb') as f_in:
+                    with gzip.open(yester_file_log_path + '.gz', 'wb') as f_out:
+                        shutil.copyfileobj(f_in, f_out)
+                os.remove(yester_file_log_path)
+        f=open(today_file_log_path, "a+")
+        datetime_string = "<reqGetDateTime>" + today_date.strftime('%y-%m-%d-%H-%M') + "</reqGetDateTime>"
+        f.write(data.replace('\n','') + datetime_string + '\n')
+        f.close()
 
     def get_lift_information(self):
         curr_lift_state = []
         lift_status = requests.get('https://rp.trailtap.com/api/getMapDetails/mammoth?mapID=',
                 headers = {'User-Agent':'Mammoth/5.15.1 CFNetwork/975.0.3 Darwin/18.2.0'})
+        asyncio.run( self.log("lift_status", "xml", lift_status.text))
         xml_blob = ET.fromstring(lift_status.text)
         for lift in xml_blob.iter('lift'):
             if lift.attrib['heading'] != 'Village Gondola':
@@ -85,7 +108,7 @@ class MammothMap(tkinter.Tk):
         self.canvas.create_image(0, 0, image=self.photo, anchor=tkinter.NW)
         self.canvas.create_rectangle(1250, 700, 1750, 830, fill = "#ADD8E6")
         self.place_weather()
-        self.after(30000, self.place_image)
+        self.after(2000, self.place_image)
 
     def place_weather(self):
         self.weather = self.get_weather_information()
@@ -95,7 +118,6 @@ class MammothMap(tkinter.Tk):
         self.canvas.create_text(1500, 765, text = 'Current Surface ' + self.weather['Surface'])
         self.canvas.create_text(1500, 780, text = 'Current Summit Wind Speed ' + self.weather['WindDetails']['Summit']['Speed'])
         self.canvas.create_text(1500, 795, text = 'Current Summit Wind Direction ' + self.weather['WindDetails']['Summit']['Direction'])
-        self.after(30000, self.place_weather)
 
     def make_weather_xml_path(self, *args):
         xmlns = '{http://schemas.mammothmountain.com/Weather/2.0}'
@@ -108,6 +130,7 @@ class MammothMap(tkinter.Tk):
         weather_txt = requests.get('https://rp.trailtap.com/api/getExtendedWeather/mammoth',
                     headers = {'User-Agent':'Mammoth/5.15.1 CFNetwork/975.0.3 Darwin/18.2.0'})
         weather_info = {}
+        asyncio.run( self.log("weather", "xml", weather_txt.text))
         xml_blob_weather = ET.fromstring(weather_txt.text)
         weather_info['ReportText'] = xml_blob_weather.find(self.make_weather_xml_path('SnowReport', 'ReportText')).text
         weather_info['Snowfall24Hour'] = xml_blob_weather.find(self.make_weather_xml_path('SnowReport', 'Snowfall24Hour')).text
