@@ -108,7 +108,7 @@ class MammothMap(tkinter.Tk):
         self.canvas.create_image(0, 0, image=self.photo, anchor=tkinter.NW)
         self.canvas.create_rectangle(1250, 700, 1750, 830, fill = "#ADD8E6")
         self.place_weather()
-        self.after(2000, self.place_image)
+        self.after(300000, self.place_image)
 
     def place_weather(self):
         self.weather = self.get_weather_information()
