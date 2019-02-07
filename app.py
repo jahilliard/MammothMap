@@ -127,12 +127,12 @@ class MammothMap(tkinter.Tk):
             self.image = self.load_image(curr_lift_state_tup[1])
             self.photo = PIL.ImageTk.PhotoImage(PIL.Image.fromarray(self.image))
             self.canvas.create_image(0, 0, image=self.photo, anchor=tkinter.NW)
-            self.canvas.create_rectangle(1250, 700, 1750, 830, fill = "#ADD8E6")
 
     def place_weather(self):
         curr_weather_state_tup = self.get_weather_information()
         if curr_weather_state_tup[0] == False:
             print("detected weather change")
+            self.canvas.create_rectangle(1250, 700, 1750, 830, fill = "#ADD8E6")
             weather = curr_weather_state_tup[1]
             self.canvas.create_text(1500, 720, text = '24 hour snow ' + weather['Snowfall24Hour'] + '\'')
             self.canvas.create_text(1500, 735, text = 'Tempurature is ' +weather['TempuratureF'])
