@@ -13,6 +13,8 @@ import gzip
 import shutil
 
 class MammothMap(tkinter.Tk):
+    curr_lift_state_hash = -1 
+    curr_weather_state_hash = -1 
     lift_map = {
             'Broadway Express 1': 'braodway.png',
             'Stump Alley Express 2': 'stump.png',
@@ -46,7 +48,7 @@ class MammothMap(tkinter.Tk):
         screen_height = self.winfo_screenheight()
         self.canvas = tkinter.Canvas(self, width = screen_width, height = screen_height)
         self.canvas.pack()
-        self.place_image()
+        self.run_update()
 
     async def log(self, log_type, data_type, data):
         today_date = dt.today()
@@ -74,19 +76,29 @@ class MammothMap(tkinter.Tk):
         curr_lift_state = []
         lift_status = requests.get('https://rp.trailtap.com/api/getMapDetails/mammoth?mapID=',
                 headers = {'User-Agent':'Mammoth/5.15.1 CFNetwork/975.0.3 Darwin/18.2.0'})
-        asyncio.run( self.log("lift_status", "xml", lift_status.text))
         xml_blob = ET.fromstring(lift_status.text)
+        current_hash = []
         for lift in xml_blob.iter('lift'):
             if lift.attrib['heading'] != 'Village Gondola':
                 curr_lift = lift.attrib
                 curr_lift['filename'] = self.lift_map[lift.attrib['heading']]
                 curr_lift_state.append(curr_lift)
-        return(curr_lift_state)
+                current_hash.append(lift.attrib['heading'] + "=" + lift.attrib["status"])
+        state_tuple = self.check_hash(":".join(sorted(current_hash)), self.curr_lift_state_hash)
+        if state_tuple[0] == False:
+            asyncio.run( self.log("lift_status", "xml", lift_status.text))
+            self.curr_lift_state_hash = state_tuple[1]
+        return(state_tuple[0], curr_lift_state)
 
-    def load_image(self):
-        print('reloaded image')
+    def check_hash(self, str_to_hash, compare_hash):
+        current_hash = hash(str_to_hash)
+        if current_hash == compare_hash: 
+            return((True, -1))
+        else:
+            return((False, current_hash))
+
+    def load_image(self, curr_lift_state):
         image = cv2.imread('mammothMountain.png')
-        curr_lift_state = self.get_lift_information()
         path = os.path.dirname(os.path.abspath(__file__)) + '/lifts/'
         for lift in curr_lift_state:
             curr_chair = cv2.imread(path+lift['filename'], -1)
@@ -101,23 +113,33 @@ class MammothMap(tkinter.Tk):
                 image[np.where(mask!=0)] = [26,173,251]
         convert_image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
         return(convert_image)
+    
+    def run_update(self):
+        print("checking Change")
+        self.place_image()
+        self.place_weather()
+        self.after(2000, self.run_update)
 
     def place_image(self):
-        self.image = self.load_image()
-        self.photo = PIL.ImageTk.PhotoImage(PIL.Image.fromarray(self.image))
-        self.canvas.create_image(0, 0, image=self.photo, anchor=tkinter.NW)
-        self.canvas.create_rectangle(1250, 700, 1750, 830, fill = "#ADD8E6")
-        self.place_weather()
-        self.after(2000, self.place_image)
+        curr_lift_state_tup = self.get_lift_information()
+        if curr_lift_state_tup[0] == False:
+            print("detected lift change")
+            self.image = self.load_image(curr_lift_state_tup[1])
+            self.photo = PIL.ImageTk.PhotoImage(PIL.Image.fromarray(self.image))
+            self.canvas.create_image(0, 0, image=self.photo, anchor=tkinter.NW)
+            self.canvas.create_rectangle(1250, 700, 1750, 830, fill = "#ADD8E6")
 
     def place_weather(self):
-        self.weather = self.get_weather_information()
-        self.canvas.create_text(1500, 720, text = '24 hour snow ' + self.weather['Snowfall24Hour'] + '\'')
-        self.canvas.create_text(1500, 735, text = 'Tempurature is ' + self.weather['TempuratureF'])
-        self.canvas.create_text(1500, 750, text = 'Current Conditions ' + self.weather['CurrentConditionName'])
-        self.canvas.create_text(1500, 765, text = 'Current Surface ' + self.weather['Surface'])
-        self.canvas.create_text(1500, 780, text = 'Current Summit Wind Speed ' + self.weather['WindDetails']['Summit']['Speed'])
-        self.canvas.create_text(1500, 795, text = 'Current Summit Wind Direction ' + self.weather['WindDetails']['Summit']['Direction'])
+        curr_weather_state_tup = self.get_weather_information()
+        if curr_weather_state_tup[0] == False:
+            print("detected weather change")
+            weather = curr_weather_state_tup[1]
+            self.canvas.create_text(1500, 720, text = '24 hour snow ' + weather['Snowfall24Hour'] + '\'')
+            self.canvas.create_text(1500, 735, text = 'Tempurature is ' +weather['TempuratureF'])
+            self.canvas.create_text(1500, 750, text = 'Current Conditions ' +weather['CurrentConditionName'])
+            self.canvas.create_text(1500, 765, text = 'Current Surface ' +weather['Surface'])
+            self.canvas.create_text(1500, 780, text = 'Current Summit Wind Speed ' +weather['WindDetails']['Summit']['Speed'])
+            self.canvas.create_text(1500, 795, text = 'Current Summit Wind Direction ' +weather['WindDetails']['Summit']['Direction'])
 
     def make_weather_xml_path(self, *args):
         xmlns = '{http://schemas.mammothmountain.com/Weather/2.0}'
@@ -130,21 +152,24 @@ class MammothMap(tkinter.Tk):
         weather_txt = requests.get('https://rp.trailtap.com/api/getExtendedWeather/mammoth',
                     headers = {'User-Agent':'Mammoth/5.15.1 CFNetwork/975.0.3 Darwin/18.2.0'})
         weather_info = {}
-        asyncio.run( self.log("weather", "xml", weather_txt.text))
-        xml_blob_weather = ET.fromstring(weather_txt.text)
-        weather_info['ReportText'] = xml_blob_weather.find(self.make_weather_xml_path('SnowReport', 'ReportText')).text
-        weather_info['Snowfall24Hour'] = xml_blob_weather.find(self.make_weather_xml_path('SnowReport', 'Snowfall24Hour')).text
-        weather_info['Snowfall48Hour'] = xml_blob_weather.find(self.make_weather_xml_path('SnowReport', 'Snowfall48Hour')).text
-        weather_info['Snowfall72Hour'] = xml_blob_weather.find(self.make_weather_xml_path('SnowReport', 'Snowfall72Hour')).text
-        weather_info['WindDescription'] = xml_blob_weather.find(self.make_weather_xml_path('Conditions', 'WindDescription')).text
-        weather_info['TempuratureF'] = xml_blob_weather.find(self.make_weather_xml_path('Conditions', 'TempuratureF')).text
-        weather_info['CurrentConditionName'] = xml_blob_weather.find(self.make_weather_xml_path('Conditions', 'CurrentConditionName')).text
-        weather_info['Surface'] = xml_blob_weather.find(self.make_weather_xml_path('SnowReport', 'Surface')).text
-        locations = xml_blob_weather.findall(self.make_weather_xml_path('SnowReport', 'Winds', 'Location'))
-        weather_info['WindDetails'] = {}
-        for location in locations:
-            weather_info['WindDetails'][location.attrib['Name']] = location.attrib
-        return(weather_info)
+        state_tuple = self.check_hash(weather_txt.text, self.curr_weather_state_hash)
+        if state_tuple[0] == False:
+            asyncio.run( self.log("weather", "xml", weather_txt.text))
+            self.curr_weather_state_hash = state_tuple[1]
+            xml_blob_weather = ET.fromstring(weather_txt.text)
+            weather_info['ReportText'] = xml_blob_weather.find(self.make_weather_xml_path('SnowReport', 'ReportText')).text
+            weather_info['Snowfall24Hour'] = xml_blob_weather.find(self.make_weather_xml_path('SnowReport', 'Snowfall24Hour')).text
+            weather_info['Snowfall48Hour'] = xml_blob_weather.find(self.make_weather_xml_path('SnowReport', 'Snowfall48Hour')).text
+            weather_info['Snowfall72Hour'] = xml_blob_weather.find(self.make_weather_xml_path('SnowReport', 'Snowfall72Hour')).text
+            weather_info['WindDescription'] = xml_blob_weather.find(self.make_weather_xml_path('Conditions', 'WindDescription')).text
+            weather_info['TempuratureF'] = xml_blob_weather.find(self.make_weather_xml_path('Conditions', 'TempuratureF')).text
+            weather_info['CurrentConditionName'] = xml_blob_weather.find(self.make_weather_xml_path('Conditions', 'CurrentConditionName')).text
+            weather_info['Surface'] = xml_blob_weather.find(self.make_weather_xml_path('SnowReport', 'Surface')).text
+            locations = xml_blob_weather.findall(self.make_weather_xml_path('SnowReport', 'Winds', 'Location'))
+            weather_info['WindDetails'] = {}
+            for location in locations:
+                weather_info['WindDetails'][location.attrib['Name']] = location.attrib
+        return(state_tuple[0], weather_info)
 
 if __name__== "__main__":
     app = MammothMap()
