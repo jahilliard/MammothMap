@@ -107,8 +107,12 @@ class MammothMap(tkinter.Tk):
             mask = cv2.inRange(curr_chair, lower, upper)
             if lift['status'] == 'OPEN':
                 image[np.where(mask!=0)] = [20,255,57]
-            elif lift['status'] == 'CLOSED':
+            elif lift['status'] == 'CLOSED' or lift['status'] == "FOR SCENIC RIDES ONLY":
                 image[np.where(mask!=0)] = [91,23,248]
+            elif lift['status'] == 'HOLD - WEATHER':
+                image[np.where(mask!=0)] = [237,160,0]
+            elif lift['status'] == '30 MINUTES OR LESS':
+                image[np.where(mask!=0)] = [8,132,6]
             else:
                 image[np.where(mask!=0)] = [26,173,251]
         convert_image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
