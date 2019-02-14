@@ -7,6 +7,7 @@ chardet==3.0.4
 click==6.7
 cryptography==2.3.1
 Django==2.1.5
+Flask==1.0.2
 get==2018.11.19
 greenlet==0.4.15
 h11==0.7.0
@@ -15,8 +16,11 @@ hpack==3.0.0
 hyperframe==5.1.0
 idna==2.8
 image==1.5.27
+itsdangerous==1.1.0
+Jinja2==2.10
 kaitaistruct==0.8
 ldap3==2.5.1
+MarkupSafe==1.1.0
 mitmproxy==4.0.4
 msgpack==0.6.0
 neovim==0.3.1
@@ -43,4 +47,5 @@ sortedcontainers==2.0.5
 tornado==5.1.1
 urllib3==1.24.1
 urwid==2.0.1
+Werkzeug==0.14.1
 wsproto==0.11.0
