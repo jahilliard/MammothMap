@@ -11,7 +11,6 @@ import datetime
 import asyncio
 import gzip
 import shutil
-from playsound import playsound
 
 class MammothMap(tkinter.Tk):
     curr_lift_state_hash = -1
