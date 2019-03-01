@@ -11,6 +11,7 @@ import datetime
 import asyncio
 import gzip
 import shutil
+from playsound import playsound
 
 class MammothMap(tkinter.Tk):
     curr_lift_state_hash = -1
@@ -41,6 +42,13 @@ class MammothMap(tkinter.Tk):
             'Panorama Lower': 'lowergondi.png',
             'Panorama Upper': 'uppergondi.png'
             }
+    top_lifts_last_known_status = {
+        'Chair 23': -1, 
+        'Chair 22': -1, 
+        'Panorama Upper': -1, 
+        'Cloud Nine Express 9': -1, 
+        'Chair 14': -1
+    }
 
     def __init__(self, *args, **kwargs):
         tkinter.Tk.__init__(self, *args, **kwargs)
@@ -73,17 +81,31 @@ class MammothMap(tkinter.Tk):
         f.close()
 
     def get_lift_information(self):
+        #del with TODO 1
+        bit_run_notif = False
         curr_lift_state = []
         lift_status = requests.get('https://rp.trailtap.com/api/getMapDetails/mammoth?mapID=',
                 headers = {'User-Agent':'Mammoth/5.15.1 CFNetwork/975.0.3 Darwin/18.2.0'})
         xml_blob = ET.fromstring(lift_status.text)
         current_hash = []
+        current_top_hash = []
         for lift in xml_blob.iter('lift'):
             if lift.attrib['heading'] != 'Village Gondola':
                 curr_lift = lift.attrib
                 curr_lift['filename'] = self.lift_map[lift.attrib['heading']]
                 curr_lift_state.append(curr_lift)
                 current_hash.append(lift.attrib['heading'] + "=" + lift.attrib["status"])
+            #TODO 1 : Make this not total shit 
+            if lift.attrib['heading'] in self.top_lifts_last_known_status.keys():
+                if self.top_lifts_last_known_status[lift.attrib['heading']] == -1:
+                    self.top_lifts_last_known_status[lift.attrib['heading']] = lift.attrib['status']
+                elif self.top_lifts_last_known_status[lift.attrib['heading']] != lift.attrib['status']:
+                    if lift.attrib['status'] in ['30 MINUTES OR LESS', 'OPEN']:
+                        bit_run_notif = True
+                    self.top_lifts_last_known_status[lift.attrib['heading']] = lift.attrib['status']
+        if bit_run_notif:
+            asyncio.run( self.notification_dispatch() )
+            # ------
         state_tuple = self.check_hash(":".join(sorted(current_hash)), self.curr_lift_state_hash)
         if state_tuple[0] == False:
             asyncio.run( self.log("lift_status", "xml", lift_status.text))
@@ -96,6 +118,12 @@ class MammothMap(tkinter.Tk):
             return((True, -1))
         else:
             return((False, current_hash))
+
+    async def notification_dispatch(self):
+        # TODO: NEED TO FIX THIS... wont work with spaces 
+        path = os.path.abspath(__file__)[0:-6].replace(" ", "\\ ")
+        os.system("afplay " + path + "assets/notif.mp3")
+        # requests.post()
 
     def load_image(self, curr_lift_state):
         image = cv2.imread('mammothMountain.png')
