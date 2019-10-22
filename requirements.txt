@@ -26,7 +26,7 @@ numpy==1.15.4
 opencv-contrib-python==3.4.4.19
 opencv-python==3.4.4.19
 passlib==1.7.1
-Pillow==5.4.1
+Pillow==6.2.0
 post==2018.11.20
 public==2018.11.20
 pyasn1==0.4.4
