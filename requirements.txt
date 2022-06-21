@@ -22,7 +22,7 @@ ldap3==2.5.1
 mitmproxy==4.0.4
 msgpack==0.6.0
 neovim==0.3.1
-numpy==1.15.4
+numpy==1.22.0
 opencv-contrib-python==3.4.4.19
 opencv-python==3.4.4.19
 passlib==1.7.1
